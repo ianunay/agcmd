@@ -1,0 +1,38 @@
+{
+  "name": "agcmd",
+  "version": "1.0.0",
+  "description": "CLI for routing messages to AI agents in tmux panes",
+  "type": "module",
+  "main": "dist/lib/index.js",
+  "bin": {
+    "agcmd": "dist/src/bin/agcmd.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test --experimental-test-coverage dist/test/**/*.test.js",
+    "test:unit": "node --test dist/test/unit/*.test.js",
+    "test:integration": "node --test dist/test/integration/*.test.js",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "cli",
+    "tmux",
+    "ai",
+    "agents",
+    "claude",
+    "codex",
+    "gemini"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@types/node": "^25.1.0",
+    "typescript": "^5.9.3"
+  }
+}
