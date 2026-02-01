@@ -8,6 +8,8 @@ import { send } from '../lib/commands/send.js';
 import { plan } from '../lib/commands/plan.js';
 import { reviewPlan } from '../lib/commands/review-plan.js';
 import { reviewDiff } from '../lib/commands/review-diff.js';
+import { ask } from '../lib/commands/ask.js';
+import { answer } from '../lib/commands/answer.js';
 import { red, cyan, dim } from '../lib/ansi.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -16,13 +18,13 @@ const VERSION = pkg.version;
 
 function printHelp(): void {
   console.log(`
-${cyan('agcmd')} - Agent Command Center CLI
+${cyan("agcmd")} - Agent Command Center CLI
 
-${dim('USAGE')}
+${dim("USAGE")}
   agcmd <command>
   agcmd <agent> <verb> [args...]
 
-${dim('COMMANDS')}
+${dim("COMMANDS")}
   start                              Create tmux layout and start agents
   <agent> send "<message>"           Send message to agent
   <agent> plan <feature> "<prompt>"  Create a plan for a feature
@@ -30,17 +32,21 @@ ${dim('COMMANDS')}
                                      Review plans for a feature
   <agent> review-diff <git-diff-args...>
                                      Review a git diff
+  ask <to-agent> <topic> "<question>"
+                                     Ask another agent a question
+  answer <to-agent> <topic> "<response>"
+                                     Answer a question from another agent
 
-${dim('TARGETS')}
+${dim("TARGETS")}
   claude, codex, gemini              Individual agents
   all                                Broadcast to all agents
 
-${dim('OPTIONS')}
+${dim("OPTIONS")}
   --raw                              Skip message escaping
   --help, -h                         Show this help
   --version, -v                      Show version
 
-${dim('EXAMPLES')}
+${dim("EXAMPLES")}
   agcmd start
   agcmd claude send "review the auth module"
   agcmd all send "sync up"
@@ -49,6 +55,10 @@ ${dim('EXAMPLES')}
   agcmd claude review-plan feature-1 "focus on security"
   agcmd claude review-diff main..HEAD
   agcmd claude review-diff --staged
+
+${dim("AGENT-TO-AGENT EXAMPLES")}
+  agcmd ask codex auth-design "How should we handle token refresh?"
+  agcmd answer claude auth-design "Use refresh tokens with 7-day expiry"
 `);
 }
 
@@ -103,6 +113,34 @@ async function main(): Promise<void> {
     // Handle start command
     if (command === 'start') {
       await start();
+      return;
+    }
+
+    // Handle ask command (agent-to-agent)
+    if (command === 'ask') {
+      if (positional.length < 4) {
+        console.error(red('Error: Missing parameters.'));
+        console.error('Usage: agcmd ask <to-agent> <topic> "<question>"');
+        process.exit(1);
+      }
+      const toAgent = positional[1];
+      const topic = positional[2];
+      const question = positional[3];
+      ask(toAgent, topic, question, { raw });
+      return;
+    }
+
+    // Handle answer command (agent-to-agent)
+    if (command === 'answer') {
+      if (positional.length < 4) {
+        console.error(red('Error: Missing parameters.'));
+        console.error('Usage: agcmd answer <to-agent> <topic> "<response>"');
+        process.exit(1);
+      }
+      const toAgent = positional[1];
+      const topic = positional[2];
+      const response = positional[3];
+      answer(toAgent, topic, response, { raw });
       return;
     }
 

@@ -19,38 +19,28 @@ Creates `~/.agcmd/` on first run.
 {
   "agents": {
     "claude": {
-      "title": "claude",
       "command": "claude"
     },
     "codex": {
-      "title": "codex",
       "command": "codex"
     },
     "gemini": {
-      "title": "gemini",
       "command": "gemini"
     }
-  },
-  "human": {
-    "title": "human"
   },
   "defaultReviewFormat": "JSON with agrees, confidence, feedback (strengths/concerns/suggestions), blocking"
 }
 ```
 
-- **agents** - Map of agent name → config (title for pane, command to start)
-- **human** - Human pane config (no command, just title)
+- **agents** - Map of agent name → config (command to start)
 - **defaultReviewFormat** - Template for review output format
 
 ## Agent Discovery
 
-Panes are created by `agcmd start` with correct titles. Commands like `send`, `plan`, `review` discover agents by matching pane titles to config:
-
-```bash
-tmux list-panes -a -F "#{pane_id} #{pane_title}"
-```
-
-If agent not found: error with hint to run `agcmd start` first.
+Panes are created by `agcmd start` and the pane IDs are stored in `~/.agcmd/panes.json`.
+Commands like `send`, `plan`, `review-plan`, and `review-diff` discover agents by reading this
+mapping. If the mapping is missing or an agent pane ID isn't found, the CLI errors and suggests
+running `agcmd start` first.
 
 ## CLI Shape
 
@@ -64,7 +54,7 @@ Agent-first feels natural: "agcmd claude send" = "send to claude"
 ```bash
 agcmd all send "sync up"           # Broadcast to all agents
 agcmd all plan feature-1 "Design"  # All agents create plans
-agcmd all review feature-1         # All agents review plans
+agcmd all review-plan feature-1    # All agents review plans
 ```
 
 Behavior: iterate over `config.agents`, skip missing panes with warning (don't fail entirely).
@@ -74,7 +64,8 @@ Behavior: iterate over `config.agents`, skip missing panes with warning (don't f
 ## v1 Commands
 
 ### start
-Set up tmux panes in **current window** and start all agents. Creates a 2x2 grid layout.
+Set up tmux panes in **current window** and start all agents. Creates a human pane on the left
+and stacks agent panes on the right.
 
 ```bash
 agcmd start
@@ -83,25 +74,20 @@ agcmd start
 **Prerequisites:** User opens a fresh tmux window, then runs `agcmd start` there.
 
 **Behavior:**
-1. Query `tmux list-panes` to check existing panes and their titles
-2. If panes with agent names (from config) already exist:
-   - Warn: "Found existing panes: claude, codex. Reuse and create missing? [y/N]"
-   - If yes: reuse existing agent panes, only create panes that don't exist
-   - If no: abort
-3. If other non-agent panes exist:
-   - Warn: "Found N existing panes without agent titles. Continue? [y/N]"
-4. Create 2x2 grid layout (only missing panes):
+1. If `~/.agcmd/panes.json` exists, prompt to overwrite.
+2. If more than one pane exists in the current window, prompt to continue.
+3. Create layout:
    ```
-   ┌─────────┬─────────┐
-   │ claude  │ codex   │
-   ├─────────┼─────────┤
-   │ gemini  │ human   │
-   └─────────┴─────────┘
+   ┌──────────┬──────────┐
+   │          │ agent-1  │
+   │          ├──────────┤
+   │  human   │ agent-2  │
+   │          ├──────────┤
+   │          │ agent-N  │
+   └──────────┴──────────┘
    ```
-5. Query `tmux list-panes` again to get actual pane IDs after creation
-6. Assign agents to panes deterministically by position (top-left, top-right, bottom-left, bottom-right)
-7. Set pane titles and start agent commands (skip already-running agents)
-8. Human pane left at shell prompt for running `agcmd` commands
+4. Start each agent command in its pane.
+5. Save pane ID mapping to `~/.agcmd/panes.json`.
 
 ### send
 Send a message to an agent (with `!` escaping).
@@ -129,20 +115,36 @@ Auth flow for mobile
 Save your plan to: ~/.agcmd/plans/feature-1/claude.md
 ```
 
-### review
-Ask agent to review plans or code. Auto-detects target type.
+### review-plan
+Ask agent to review plans for a feature.
 
 ```bash
-agcmd claude review feature-1                    # Reviews plans in ~/.agcmd/plans/feature-1/
-agcmd claude review feature-1 "focus on security"  # With extra instructions
-agcmd claude review main..feature-branch --type code  # Review code diff
+agcmd claude review-plan feature-1
+agcmd claude review-plan feature-1 "focus on security"
 ```
 
-Agent receives (for plan review):
+Agent receives:
 ```
 Review the plans in ~/.agcmd/plans/feature-1/
 
 focus on security
+
+Respond in format: <defaultReviewFormat>
+```
+
+### review-diff
+Ask agent to review a git diff.
+
+```bash
+agcmd claude review-diff main..feature-branch
+agcmd claude review-diff --staged
+```
+
+Agent receives:
+```
+Review the git diff: git diff <args...>
+
+Respond in format: <defaultReviewFormat>
 ```
 
 ---
@@ -150,7 +152,7 @@ focus on security
 ## v2 Commands (Agent-to-Agent)
 
 ### ask
-Agent asks another agent a question. Requires human approval.
+Agent asks another agent a question. Must be run from an agent pane.
 
 ```bash
 agcmd ask codex auth-design "How should we handle token refresh?"

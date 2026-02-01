@@ -47,3 +47,17 @@ export function getPaneId(agentName: string): string | null {
   const mapping = loadPaneMapping();
   return mapping[agentName] || null;
 }
+
+/**
+ * Get the agent name for a pane ID.
+ * Returns null if not found (pane is not a known agent).
+ */
+export function getAgentByPaneId(paneId: string): string | null {
+  const mapping = loadPaneMapping();
+  for (const [agentName, id] of Object.entries(mapping)) {
+    if (id === paneId) {
+      return agentName;
+    }
+  }
+  return null;
+}
