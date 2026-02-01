@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "description": "CLI for routing messages to AI agents in tmux panes",
   "type": "module",
-  "main": "dist/lib/index.js",
   "bin": {
     "agcmd": "dist/src/bin/agcmd.js"
   },
   "scripts": {
-    "build": "tsc",
-    "test": "node --test --experimental-test-coverage dist/test/**/*.test.js",
-    "test:unit": "node --test dist/test/unit/*.test.js",
-    "test:integration": "node --test dist/test/integration/*.test.js",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc",
+    "build:test": "tsc -p tsconfig.test.json",
+    "test": "npm run build:test && node --test --experimental-test-coverage dist/test/**/*.test.js",
+    "test:unit": "npm run build:test && node --test dist/test/unit/*.test.js",
+    "test:integration": "npm run build:test && node --test dist/test/integration/*.test.js",
     "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
@@ -29,7 +30,7 @@
     "node": ">=22.0.0"
   },
   "files": [
-    "dist"
+    "dist/src/**/*.js"
   ],
   "devDependencies": {
     "@types/node": "^25.1.0",
