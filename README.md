@@ -2,6 +2,17 @@
 
 Agent Command Center CLI for routing messages between AI agents running in tmux panes. Includes injected instructions for repeated tasks.
 
+Tmux window layout:
+<pre>
+┌──────────┬──────────┐
+│          │ agent-1  │
+│          ├──────────┤
+│  human   │ agent-2  │
+│          ├──────────┤
+│          │ agent-N  │
+└──────────┴──────────┘
+</pre>
+
 ## Prerequisites
 - Node.js >=22 (haven't tested on earlier versions)
 - tmux
