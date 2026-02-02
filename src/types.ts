@@ -5,6 +5,7 @@ export interface AgentConfig {
 export interface Config {
   agents: Record<string, AgentConfig>;
   defaultReviewFormat: string;
+  log: boolean;
 }
 
 export interface Pane {

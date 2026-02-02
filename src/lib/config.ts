@@ -36,16 +36,18 @@ export function getDefaultConfig(): Config {
   return {
     agents: {
       claude: {
-        command: 'claude'
+        command: "claude",
       },
       codex: {
-        command: 'codex'
+        command: "codex",
       },
       gemini: {
-        command: 'gemini'
-      }
+        command: "gemini",
+      },
     },
-    defaultReviewFormat: 'JSON with agrees, confidence, feedback (strengths/concerns/suggestions), blocking'
+    defaultReviewFormat:
+      "JSON with agrees, confidence, blocking, review-comments",
+    log: false,
   };
 }
 

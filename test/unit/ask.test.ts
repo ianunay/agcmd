@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { existsSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { setExecFn, resetExecFn } from '../../src/lib/exec.js';
@@ -42,11 +42,20 @@ describe('ask command', () => {
     }
   });
 
-  async function setupPanes() {
-    const { ensureConfigDir } = await import('../../src/lib/config.js');
+  async function setupPanes(enableLogging = false) {
+    const { ensureConfigDir, getConfigDir } = await import('../../src/lib/config.js');
     const { savePaneMapping } = await import('../../src/lib/panes.js');
     ensureConfigDir();
     savePaneMapping({ claude: '%1', codex: '%2', gemini: '%3', human: '%0' });
+
+    if (enableLogging) {
+      const config = {
+        agents: { claude: { command: 'claude' }, codex: { command: 'codex' }, gemini: { command: 'gemini' } },
+        defaultReviewFormat: 'JSON',
+        log: true
+      };
+      writeFileSync(join(getConfigDir(), 'config.json'), JSON.stringify(config));
+    }
   }
 
   describe('validation', () => {
@@ -348,7 +357,7 @@ describe('ask command', () => {
     });
 
     it('should log the command', async () => {
-      await setupPanes();
+      await setupPanes(true);
       const { ask } = await import('../../src/lib/commands/ask.js');
 
       ask('codex', 'test-topic', 'hello');

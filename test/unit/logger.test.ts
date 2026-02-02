@@ -1,10 +1,24 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { existsSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const originalHomedir = process.env.HOME;
+
+/**
+ * Helper to create a config file with logging enabled/disabled.
+ */
+function createConfig(testDir: string, logEnabled: boolean): void {
+  const configDir = join(testDir, '.agcmd');
+  mkdirSync(configDir, { recursive: true });
+  const config = {
+    agents: { claude: { command: 'claude' } },
+    defaultReviewFormat: 'JSON',
+    log: logEnabled
+  };
+  writeFileSync(join(configDir, 'config.json'), JSON.stringify(config));
+}
 
 describe('logger', () => {
   let testDir: string;
@@ -24,6 +38,7 @@ describe('logger', () => {
 
   describe('log', () => {
     it('should create log file if missing', async () => {
+      createConfig(testDir, true);
       const { log, getLogPath } = await import('../../src/lib/logger.js');
 
       log({ agent: 'claude', verb: 'send', args: ['hello'], from: 'human' });
@@ -33,6 +48,7 @@ describe('logger', () => {
     });
 
     it('should append entries with newline', async () => {
+      createConfig(testDir, true);
       const { log, getLogPath } = await import('../../src/lib/logger.js');
 
       log({ agent: 'claude', verb: 'send', args: ['hello'], from: 'human' });
@@ -44,6 +60,7 @@ describe('logger', () => {
     });
 
     it('should write valid JSON per line', async () => {
+      createConfig(testDir, true);
       const { log, getLogPath } = await import('../../src/lib/logger.js');
 
       log({ agent: 'claude', verb: 'send', args: ['test message'], from: 'human' });
@@ -59,6 +76,7 @@ describe('logger', () => {
     });
 
     it('should include ISO 8601 timestamp', async () => {
+      createConfig(testDir, true);
       const { log, getLogPath } = await import('../../src/lib/logger.js');
 
       const before = new Date().toISOString();
@@ -75,6 +93,7 @@ describe('logger', () => {
     });
 
     it('should handle multiple args', async () => {
+      createConfig(testDir, true);
       const { log, getLogPath } = await import('../../src/lib/logger.js');
 
       log({ agent: 'claude', verb: 'plan', args: ['feature-1', 'design auth'], from: 'human' });
@@ -83,6 +102,16 @@ describe('logger', () => {
       const entry = JSON.parse(content.trim());
 
       assert.deepStrictEqual(entry.args, ['feature-1', 'design auth']);
+    });
+
+    it('should not write to log file when config.log is false', async () => {
+      createConfig(testDir, false);
+      const { log, getLogPath } = await import('../../src/lib/logger.js');
+
+      log({ agent: 'claude', verb: 'send', args: ['hello'], from: 'human' });
+
+      const logPath = getLogPath();
+      assert.ok(!existsSync(logPath), 'log file should not be created when logging is disabled');
     });
   });
 });

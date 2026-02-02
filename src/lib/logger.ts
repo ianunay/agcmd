@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getConfigDir, ensureConfigDir } from './config.js';
+import { getConfigDir, ensureConfigDir, loadConfig } from './config.js';
 import type { LogEntry } from '../types.js';
 
 /**
@@ -12,8 +12,14 @@ export function getLogPath(): string {
 
 /**
  * Log a command entry to the JSONL log file.
+ * Does nothing if logging is disabled in config.
  */
 export function log(entry: Omit<LogEntry, 'ts'>): void {
+  const config = loadConfig();
+  if (!config.log) {
+    return;
+  }
+
   ensureConfigDir();
 
   const logPath = getLogPath();

@@ -1,6 +1,10 @@
 # agcmd
 
-Agent Command Center CLI for routing messages between AI agents running in tmux panes. Includes `!` escaping, injected instructions, and audit logging.
+Agent Command Center CLI for routing messages between AI agents running in tmux panes. Includes injected instructions for repeated tasks.
+
+## Prerequisites
+- Node.js >=22 (haven't tested on earlier versions)
+- tmux
 
 ## Install
 
@@ -12,13 +16,14 @@ npm install -g agcmd
 
 ```bash
 # inside a tmux window
-agcmd start
+agcmd start # splits the window into panes for each agent
 
-dagcmd claude send "review the auth module"
+agcmd claude send "review the auth module"
 agcmd all send "sync up"
 ```
 
 ## Agent-to-agent
+An agent can ask another agent a question, and the other agent can respond.
 
 ```bash
 agcmd ask codex auth-design "How should we handle token refresh?"
@@ -32,11 +37,12 @@ Config is stored at `~/.agcmd/config.json` (created on first run). Minimal examp
 ```json
 {
   "agents": {
-    "claude": { "title": "claude", "command": "claude" },
-    "codex": { "title": "codex", "command": "codex" },
-    "gemini": { "title": "gemini", "command": "gemini" }
+    "claude": { "command": "claude" },
+    "codex": { "command": "codex" },
+    "gemini": { "command": "gemini" }
   },
-  "human": { "title": "human" }
+  "defaultReviewFormat": "JSON with agrees, confidence, blocking, review-comments",
+  "log": false
 }
 ```
 
@@ -57,9 +63,3 @@ Config is stored at `~/.agcmd/config.json` (created on first run). Minimal examp
 - `agcmd <agent> review <feature | diff> [--type code]`
 - `agcmd ask <to-agent> <topic> "..."`
 - `agcmd answer <to-agent> <topic> "..."`
-
-## Dev
-
-```bash
-npm test
-```
