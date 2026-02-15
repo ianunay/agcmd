@@ -126,5 +126,5 @@ export async function start(): Promise<void> {
     console.log(`  ${cyan(name)}: ${id}`);
   }
   console.log('');
-  console.log(`Mapping saved to ~/.agcmd/panes.json`);
+  console.log(`Mapping saved.`);
 }

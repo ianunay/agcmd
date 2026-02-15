@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadConfig, getConfigDir } from '../config.js';
+import { loadConfig, getProjectDir } from '../config.js';
 import { sendKeys, getCurrentPaneId, isInTmux } from '../tmux.js';
 import { getPaneId, getAgentByPaneId } from '../panes.js';
 import { log } from '../logger.js';
@@ -14,7 +14,7 @@ export interface AskOptions {
 /**
  * Ask another agent a question.
  * Detects the asking agent from the current pane.
- * Writes question to ~/.agcmd/questions/<topic>/<from-agent>.md
+ * Writes question to project-scoped questions/<topic>/<from-agent>.md
  * Sends to target agent with [from: <agent>] prefix.
  */
 export function ask(
@@ -97,7 +97,7 @@ export function ask(
   }
 
   // Create the questions directory
-  const questionsDir = join(getConfigDir(), 'questions', slug);
+  const questionsDir = join(getProjectDir(), 'questions', slug);
   if (!existsSync(questionsDir)) {
     mkdirSync(questionsDir, { recursive: true });
   }
@@ -109,7 +109,7 @@ export function ask(
   writeFileSync(questionFile, questionContent);
 
   // Build the message to send
-  const answerPath = `~/.agcmd/questions/${slug}/${toAgent}.md`;
+  const answerPath = join(getProjectDir(), 'questions', slug, `${toAgent}.md`);
   const fullMessage = `[from: ${fromAgent}] ${message}
 
 Save your answer to: ${answerPath}

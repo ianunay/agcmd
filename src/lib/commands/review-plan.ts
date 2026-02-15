@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadConfig, getConfigDir } from '../config.js';
+import { loadConfig, getProjectDir } from '../config.js';
 import { sendKeys, getCurrentPaneId, isInTmux } from '../tmux.js';
 import { getPaneId, loadPaneMapping } from '../panes.js';
 import { log } from '../logger.js';
@@ -39,9 +39,9 @@ export function reviewPlan(
   }
 
   // Verify the plans directory exists
-  const plansDir = join(getConfigDir(), 'plans', slug);
+  const plansDir = join(getProjectDir(), 'plans', slug);
   if (!existsSync(plansDir)) {
-    console.error(red(`Error: Plans directory not found: ~/.agcmd/plans/${slug}/`));
+    console.error(red(`Error: Plans directory not found: ${plansDir}`));
     console.error('Create plans first with: agcmd <agent> plan <feature> "<prompt>"');
     process.exit(1);
   }
@@ -76,7 +76,7 @@ function reviewPlanOne(
   }
 
   // Build the message
-  const plansPath = `~/.agcmd/plans/${feature}/`;
+  const plansPath = join(getProjectDir(), 'plans', feature);
   const message = instructions
     ? `Review the plans in ${plansPath}\n\n${instructions}\n\nRespond in format: ${config.defaultReviewFormat}`
     : `Review the plans in ${plansPath}\n\nRespond in format: ${config.defaultReviewFormat}`;
@@ -126,7 +126,7 @@ function reviewPlanAll(
     }
 
     // Build the message
-    const plansPath = `~/.agcmd/plans/${feature}/`;
+    const plansPath = join(getProjectDir(), 'plans', feature);
     const message = instructions
       ? `Review the plans in ${plansPath}\n\n${instructions}\n\nRespond in format: ${config.defaultReviewFormat}`
       : `Review the plans in ${plansPath}\n\nRespond in format: ${config.defaultReviewFormat}`;

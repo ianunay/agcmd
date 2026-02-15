@@ -1,7 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import type { Config } from '../types.js';
+import { slugify } from './slugify.js';
+import { exec } from './exec.js';
 
 /**
  * Get the agcmd config directory path.
@@ -11,21 +13,62 @@ export function getConfigDir(): string {
 }
 
 /**
- * Ensure the config directory and subdirectories exist.
+ * Get the project-scoped directory for the current git repo.
+ * Falls back to the current working directory if not in a git repo.
+ */
+export function getProjectDir(): string {
+  let projectRoot: string;
+  try {
+    projectRoot = exec('git rev-parse --show-toplevel').trim();
+  } catch {
+    projectRoot = process.cwd();
+  }
+
+  const home = homedir();
+  const relativePath = relative(home, projectRoot);
+  const { slug } = slugify(relativePath);
+  const projectDir = join(home, '.agcmd', 'projects', slug);
+
+  if (!existsSync(projectDir)) {
+    mkdirSync(projectDir, { recursive: true });
+  }
+
+  return projectDir;
+}
+
+/**
+ * Get the session-scoped directory for the current tmux window.
+ * Falls back to "default" if not running inside tmux.
+ */
+export function getSessionDir(): string {
+  let windowId: string;
+  try {
+    windowId = exec("tmux display-message -p '#{window_id}'").trim();
+  } catch {
+    windowId = 'default';
+  }
+
+  if (!windowId) {
+    windowId = 'default';
+  }
+
+  const sessionDir = join(getProjectDir(), 'sessions', windowId);
+
+  if (!existsSync(sessionDir)) {
+    mkdirSync(sessionDir, { recursive: true });
+  }
+
+  return sessionDir;
+}
+
+/**
+ * Ensure the config directory exists (for global config.json only).
  */
 export function ensureConfigDir(): void {
   const configDir = getConfigDir();
-  const subdirs = ['plans', 'questions', 'logs'];
 
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true });
-  }
-
-  for (const subdir of subdirs) {
-    const subdirPath = join(configDir, subdir);
-    if (!existsSync(subdirPath)) {
-      mkdirSync(subdirPath, { recursive: true });
-    }
   }
 }
 

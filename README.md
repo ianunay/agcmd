@@ -57,14 +57,30 @@ Config is stored at `~/.agcmd/config.json` (created on first run). Minimal examp
 }
 ```
 
-## Files
+## Storage Layout
+
+Data is isolated per-project and per-tmux-window:
 
 ```
 ~/.agcmd/
-  plans/<feature>/<agent>.md
-  questions/<topic>/<agent>.md
-  logs/commands.jsonl
+├── config.json                          # Global (shared across all projects)
+└── projects/
+    └── <slugified-path>/                # Per-project (e.g., code-agcmd)
+        ├── plans/
+        │   └── <feature>/
+        │       └── <agent>.md
+        ├── questions/
+        │   └── <topic>/
+        │       └── <agent>.md
+        ├── logs/
+        │   └── commands.jsonl
+        └── sessions/
+            └── <tmux-window-id>/        # Per-window (e.g., @0, @3)
+                └── panes.json
 ```
+
+- **Project path** is derived from the git root, slugified relative to `$HOME` (e.g., `~/Code/agcmd` → `code-agcmd`). Falls back to cwd if not in a git repo.
+- **Session** uses the tmux window ID so multiple windows can run independent agent sets. Falls back to `default` outside tmux.
 
 ## Commands
 

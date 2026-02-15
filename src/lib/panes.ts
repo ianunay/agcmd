@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getConfigDir, ensureConfigDir } from './config.js';
+import { getSessionDir } from './config.js';
 
 export interface PaneMapping {
   [agentName: string]: string; // agent name -> pane ID
@@ -10,14 +10,13 @@ export interface PaneMapping {
  * Get the path to the panes.json file.
  */
 export function getPanesPath(): string {
-  return join(getConfigDir(), 'panes.json');
+  return join(getSessionDir(), 'panes.json');
 }
 
 /**
  * Save the pane ID mapping to disk.
  */
 export function savePaneMapping(mapping: PaneMapping): void {
-  ensureConfigDir();
   const path = getPanesPath();
   writeFileSync(path, JSON.stringify(mapping, null, 2) + '\n');
 }

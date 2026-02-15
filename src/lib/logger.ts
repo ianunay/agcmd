@@ -1,13 +1,13 @@
-import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getConfigDir, ensureConfigDir, loadConfig } from './config.js';
+import { getProjectDir, loadConfig } from './config.js';
 import type { LogEntry } from '../types.js';
 
 /**
  * Get the path to the commands log file.
  */
 export function getLogPath(): string {
-  return join(getConfigDir(), 'logs', 'commands.jsonl');
+  return join(getProjectDir(), 'logs', 'commands.jsonl');
 }
 
 /**
@@ -20,9 +20,13 @@ export function log(entry: Omit<LogEntry, 'ts'>): void {
     return;
   }
 
-  ensureConfigDir();
-
   const logPath = getLogPath();
+
+  const logsDir = join(getProjectDir(), 'logs');
+  if (!existsSync(logsDir)) {
+    mkdirSync(logsDir, { recursive: true });
+  }
+
   const fullEntry: LogEntry = {
     ts: new Date().toISOString(),
     ...entry

@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { setExecFn, resetExecFn } from '../../src/lib/exec.js';
 
 const originalHomedir = process.env.HOME;
 
@@ -22,18 +23,41 @@ function createConfig(testDir: string, logEnabled: boolean): void {
 
 describe('logger', () => {
   let testDir: string;
+  let fakeGitRoot: string;
 
   beforeEach(() => {
     testDir = join(tmpdir(), `agcmd-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     mkdirSync(testDir, { recursive: true });
     process.env.HOME = testDir;
+
+    fakeGitRoot = join(testDir, 'repos', 'my-project');
+    mkdirSync(fakeGitRoot, { recursive: true });
+
+    // Mock exec for git commands (getProjectDir needs this)
+    setExecFn((cmd: string) => {
+      if (cmd.includes('git rev-parse --show-toplevel')) {
+        return fakeGitRoot + '\n';
+      }
+      throw new Error(`Unexpected command: ${cmd}`);
+    });
   });
 
   afterEach(() => {
     process.env.HOME = originalHomedir;
+    resetExecFn();
     if (existsSync(testDir)) {
       rmSync(testDir, { recursive: true, force: true });
     }
+  });
+
+  describe('getLogPath', () => {
+    it('should return path under project directory', async () => {
+      const { getLogPath } = await import('../../src/lib/logger.js');
+      const result = getLogPath();
+
+      assert.ok(result.includes('projects'), 'log path should be under projects dir');
+      assert.ok(result.endsWith(join('logs', 'commands.jsonl')), 'should end with logs/commands.jsonl');
+    });
   });
 
   describe('log', () => {
@@ -112,6 +136,47 @@ describe('logger', () => {
 
       const logPath = getLogPath();
       assert.ok(!existsSync(logPath), 'log file should not be created when logging is disabled');
+    });
+  });
+
+  describe('project isolation', () => {
+    it('should write logs to different dirs for different projects', async () => {
+      createConfig(testDir, true);
+
+      const repoA = join(testDir, 'repos', 'project-a');
+      const repoB = join(testDir, 'repos', 'project-b');
+      mkdirSync(repoA, { recursive: true });
+      mkdirSync(repoB, { recursive: true });
+
+      let currentRepo = repoA;
+      setExecFn((cmd: string) => {
+        if (cmd.includes('git rev-parse --show-toplevel')) {
+          return currentRepo + '\n';
+        }
+        throw new Error(`Unexpected command: ${cmd}`);
+      });
+
+      const { log, getLogPath } = await import('../../src/lib/logger.js');
+
+      // Log to project A
+      log({ agent: 'claude', verb: 'send', args: ['hello from A'], from: 'human' });
+      const logPathA = getLogPath();
+
+      // Switch to project B
+      currentRepo = repoB;
+      log({ agent: 'codex', verb: 'send', args: ['hello from B'], from: 'human' });
+      const logPathB = getLogPath();
+
+      assert.notStrictEqual(logPathA, logPathB, 'different projects should have different log paths');
+
+      // Verify each log has only its own entries
+      const contentA = readFileSync(logPathA, 'utf-8');
+      const entryA = JSON.parse(contentA.trim());
+      assert.strictEqual(entryA.agent, 'claude');
+
+      const contentB = readFileSync(logPathB, 'utf-8');
+      const entryB = JSON.parse(contentB.trim());
+      assert.strictEqual(entryB.agent, 'codex');
     });
   });
 });

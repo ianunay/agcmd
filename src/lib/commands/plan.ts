@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadConfig, getConfigDir } from '../config.js';
+import { loadConfig, getProjectDir } from '../config.js';
 import { sendKeys, getCurrentPaneId, isInTmux } from '../tmux.js';
 import { getPaneId, loadPaneMapping } from '../panes.js';
 import { log } from '../logger.js';
@@ -42,7 +42,7 @@ export function plan(
   }
 
   // Create the plans directory
-  const plansDir = join(getConfigDir(), 'plans', slug);
+  const plansDir = join(getProjectDir(), 'plans', slug);
   if (!existsSync(plansDir)) {
     mkdirSync(plansDir, { recursive: true });
   }
@@ -79,7 +79,7 @@ function planOne(
   }
 
   // Build the message
-  const savePath = `~/.agcmd/plans/${feature}/${target}.md`;
+  const savePath = join(getProjectDir(), 'plans', feature, `${target}.md`);
   const message = `Plan the feature:\n\n${prompt}\n\nSave your plan to: ${savePath}`;
 
   // Send the message
@@ -128,7 +128,7 @@ function planAll(
     }
 
     // Build the message
-    const savePath = `~/.agcmd/plans/${feature}/${agentName}.md`;
+    const savePath = join(getProjectDir(), 'plans', feature, `${agentName}.md`);
     const message = `Plan the feature:\n\n${prompt}\n\nSave your plan to: ${savePath}`;
 
     // Send the message

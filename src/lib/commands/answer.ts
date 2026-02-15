@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadConfig, getConfigDir } from '../config.js';
+import { loadConfig, getProjectDir } from '../config.js';
 import { sendKeys, getCurrentPaneId, isInTmux } from '../tmux.js';
 import { getPaneId, getAgentByPaneId } from '../panes.js';
 import { log } from '../logger.js';
@@ -14,7 +14,7 @@ export interface AnswerOptions {
 /**
  * Answer a question from another agent.
  * Detects the answering agent from the current pane.
- * Writes answer to ~/.agcmd/questions/<topic>/<from-agent>.md
+ * Writes answer to project-scoped questions/<topic>/<from-agent>.md
  * Sends to target agent with [from: <agent>] prefix.
  */
 export function answer(
@@ -100,7 +100,7 @@ export function answer(
   }
 
   // Check if the questions directory exists (optional - warn if no prior question)
-  const questionsDir = join(getConfigDir(), 'questions', slug);
+  const questionsDir = join(getProjectDir(), 'questions', slug);
   if (!existsSync(questionsDir)) {
     console.log(yellow(`Warning: No prior questions found for topic '${slug}'.`));
     console.log(yellow('Creating new topic directory.'));

@@ -10,7 +10,9 @@ const originalTmux = process.env.TMUX;
 
 describe('ask command', () => {
   let testDir: string;
+  let fakeGitRoot: string;
   let execCalls: string[];
+  let projectDir: string;
 
   beforeEach(() => {
     testDir = join(tmpdir(), `agcmd-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -19,9 +21,22 @@ describe('ask command', () => {
     process.env.TMUX = '/tmp/tmux-501/default,12345,0';
     execCalls = [];
 
-    // Mock exec to capture tmux commands
+    fakeGitRoot = join(testDir, 'repos', 'my-project');
+    mkdirSync(fakeGitRoot, { recursive: true });
+
+    // Compute the expected project dir
+    // relative path: "repos/my-project" → slug: "repos-my-project"
+    projectDir = join(testDir, '.agcmd', 'projects', 'repos-my-project');
+
+    // Mock exec - current pane is claude (%1), handle git + tmux
     setExecFn((cmd: string) => {
       execCalls.push(cmd);
+      if (cmd.includes('git rev-parse --show-toplevel')) {
+        return fakeGitRoot + '\n';
+      }
+      if (cmd.includes("tmux display-message -p '#{window_id}'")) {
+        return '@1\n';
+      }
       if (cmd.includes('display-message')) {
         return '%1'; // Current pane is claude
       }
@@ -82,6 +97,12 @@ describe('ask command', () => {
 
     it('should error when current pane is not a known agent', async () => {
       setExecFn((cmd: string) => {
+        if (cmd.includes('git rev-parse --show-toplevel')) {
+          return fakeGitRoot + '\n';
+        }
+        if (cmd.includes("tmux display-message -p '#{window_id}'")) {
+          return '@1\n';
+        }
         if (cmd.includes('display-message')) {
           return '%99'; // Unknown pane
         }
@@ -116,6 +137,12 @@ describe('ask command', () => {
 
       // Current pane is human
       setExecFn((cmd: string) => {
+        if (cmd.includes('git rev-parse --show-toplevel')) {
+          return fakeGitRoot + '\n';
+        }
+        if (cmd.includes("tmux display-message -p '#{window_id}'")) {
+          return '@1\n';
+        }
         if (cmd.includes('display-message')) {
           return '%0'; // Human pane
         }
@@ -323,8 +350,8 @@ describe('ask command', () => {
 
       ask('codex', 'auth-design', 'How should we handle tokens?');
 
-      // Check question file was created
-      const questionFile = join(testDir, '.agcmd', 'questions', 'auth-design', 'claude.md');
+      // Check question file was created under project dir
+      const questionFile = join(projectDir, 'questions', 'auth-design', 'claude.md');
       assert.ok(existsSync(questionFile), 'question file should exist');
 
       const content = readFileSync(questionFile, 'utf-8');
@@ -352,7 +379,7 @@ describe('ask command', () => {
 
       ask('codex', 'Auth Design v2!!!', 'question');
 
-      const questionDir = join(testDir, '.agcmd', 'questions', 'auth-design-v2');
+      const questionDir = join(projectDir, 'questions', 'auth-design-v2');
       assert.ok(existsSync(questionDir), 'should create directory with slugified name');
     });
 
@@ -362,7 +389,7 @@ describe('ask command', () => {
 
       ask('codex', 'test-topic', 'hello');
 
-      const logFile = join(testDir, '.agcmd', 'logs', 'commands.jsonl');
+      const logFile = join(projectDir, 'logs', 'commands.jsonl');
       assert.ok(existsSync(logFile), 'log file should exist');
 
       const logContent = readFileSync(logFile, 'utf-8');

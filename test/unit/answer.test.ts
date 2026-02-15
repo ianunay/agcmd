@@ -10,7 +10,9 @@ const originalTmux = process.env.TMUX;
 
 describe('answer command', () => {
   let testDir: string;
+  let fakeGitRoot: string;
   let execCalls: string[];
+  let projectDir: string;
 
   beforeEach(() => {
     testDir = join(tmpdir(), `agcmd-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -19,9 +21,22 @@ describe('answer command', () => {
     process.env.TMUX = '/tmp/tmux-501/default,12345,0';
     execCalls = [];
 
-    // Mock exec - current pane is codex (%2)
+    fakeGitRoot = join(testDir, 'repos', 'my-project');
+    mkdirSync(fakeGitRoot, { recursive: true });
+
+    // Compute the expected project dir
+    // relative path: "repos/my-project" → slug: "repos-my-project"
+    projectDir = join(testDir, '.agcmd', 'projects', 'repos-my-project');
+
+    // Mock exec - current pane is codex (%2), handle git + tmux
     setExecFn((cmd: string) => {
       execCalls.push(cmd);
+      if (cmd.includes('git rev-parse --show-toplevel')) {
+        return fakeGitRoot + '\n';
+      }
+      if (cmd.includes("tmux display-message -p '#{window_id}'")) {
+        return '@1\n';
+      }
       if (cmd.includes('display-message')) {
         return '%2'; // Current pane is codex
       }
@@ -60,8 +75,8 @@ describe('answer command', () => {
 
   async function setupPanesWithQuestion(enableLogging = false) {
     await setupPanes(enableLogging);
-    // Create a prior question from claude
-    const questionsDir = join(testDir, '.agcmd', 'questions', 'auth-design');
+    // Create a prior question from claude under project dir
+    const questionsDir = join(projectDir, 'questions', 'auth-design');
     mkdirSync(questionsDir, { recursive: true });
   }
 
@@ -89,6 +104,12 @@ describe('answer command', () => {
 
     it('should error when current pane is not a known agent', async () => {
       setExecFn((cmd: string) => {
+        if (cmd.includes('git rev-parse --show-toplevel')) {
+          return fakeGitRoot + '\n';
+        }
+        if (cmd.includes("tmux display-message -p '#{window_id}'")) {
+          return '@1\n';
+        }
         if (cmd.includes('display-message')) {
           return '%99'; // Unknown pane
         }
@@ -123,6 +144,12 @@ describe('answer command', () => {
 
       // Current pane is human
       setExecFn((cmd: string) => {
+        if (cmd.includes('git rev-parse --show-toplevel')) {
+          return fakeGitRoot + '\n';
+        }
+        if (cmd.includes("tmux display-message -p '#{window_id}'")) {
+          return '@1\n';
+        }
         if (cmd.includes('display-message')) {
           return '%0'; // Human pane
         }
@@ -309,8 +336,8 @@ describe('answer command', () => {
 
       answer('claude', 'auth-design', 'Use refresh tokens with 7-day expiry');
 
-      // Check answer file was created
-      const answerFile = join(testDir, '.agcmd', 'questions', 'auth-design', 'codex.md');
+      // Check answer file was created under project dir
+      const answerFile = join(projectDir, 'questions', 'auth-design', 'codex.md');
       assert.ok(existsSync(answerFile), 'answer file should exist');
 
       const content = readFileSync(answerFile, 'utf-8');
@@ -339,8 +366,8 @@ describe('answer command', () => {
       // Should not throw, just warn
       answer('claude', 'new-topic', 'response to something');
 
-      // Should still create the file
-      const answerFile = join(testDir, '.agcmd', 'questions', 'new-topic', 'codex.md');
+      // Should still create the file under project dir
+      const answerFile = join(projectDir, 'questions', 'new-topic', 'codex.md');
       assert.ok(existsSync(answerFile), 'answer file should still be created');
     });
 
@@ -350,7 +377,7 @@ describe('answer command', () => {
 
       answer('claude', 'Auth Design v2!!!', 'my response');
 
-      const answerDir = join(testDir, '.agcmd', 'questions', 'auth-design-v2');
+      const answerDir = join(projectDir, 'questions', 'auth-design-v2');
       assert.ok(existsSync(answerDir), 'should create directory with slugified name');
     });
 
@@ -360,7 +387,7 @@ describe('answer command', () => {
 
       answer('claude', 'auth-design', 'my response');
 
-      const logFile = join(testDir, '.agcmd', 'logs', 'commands.jsonl');
+      const logFile = join(projectDir, 'logs', 'commands.jsonl');
       assert.ok(existsSync(logFile), 'log file should exist');
 
       const logContent = readFileSync(logFile, 'utf-8');

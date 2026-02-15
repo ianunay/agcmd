@@ -1,6 +1,6 @@
 {
   "name": "agcmd",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CLI for routing messages to AI agents in tmux panes",
   "type": "module",
   "bin": {
@@ -24,7 +24,11 @@
     "codex",
     "gemini"
   ],
-  "author": "",
+  "author": "ianunay",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ianunay/agcmd.git"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=22.0.0"
@@ -33,7 +37,7 @@
     "dist/src/**/*.js"
   ],
   "devDependencies": {
-    "@types/node": "^25.1.0",
+    "@types/node": "^25.2.3",
     "typescript": "^5.9.3"
   }
 }

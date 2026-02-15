@@ -10,7 +10,7 @@ An npm CLI that routes messages to AI agents running in tmux panes, with `!` esc
 npm install -g agcmd
 ```
 
-Creates `~/.agcmd/` on first run.
+Creates `~/.agcmd/` on first run. Project data is stored under `~/.agcmd/projects/<slugified-path>/`.
 
 ## Configuration
 
@@ -37,7 +37,8 @@ Creates `~/.agcmd/` on first run.
 
 ## Agent Discovery
 
-Panes are created by `agcmd start` and the pane IDs are stored in `~/.agcmd/panes.json`.
+Panes are created by `agcmd start` and the pane IDs are stored per-session at
+`~/.agcmd/projects/<slug>/sessions/<tmux-window-id>/panes.json`.
 Commands like `send`, `plan`, `review-plan`, and `review-diff` discover agents by reading this
 mapping. If the mapping is missing or an agent pane ID isn't found, the CLI errors and suggests
 running `agcmd start` first.
@@ -74,7 +75,7 @@ agcmd start
 **Prerequisites:** User opens a fresh tmux window, then runs `agcmd start` there.
 
 **Behavior:**
-1. If `~/.agcmd/panes.json` exists, prompt to overwrite.
+1. If session `panes.json` exists, prompt to overwrite.
 2. If more than one pane exists in the current window, prompt to continue.
 3. Create layout:
    ```
@@ -87,7 +88,7 @@ agcmd start
    └──────────┴──────────┘
    ```
 4. Start each agent command in its pane.
-5. Save pane ID mapping to `~/.agcmd/panes.json`.
+5. Save pane ID mapping to session `panes.json`.
 
 ### send
 Send a message to an agent (with `!` escaping).
@@ -104,7 +105,7 @@ Instruct agent to create a plan. CLI injects save path.
 agcmd claude plan feature-1 "Auth flow for mobile"
 ```
 
-agcmd creates `~/.agcmd/plans/feature-1/` and tells the agent to save there.
+agcmd creates the project-scoped `plans/feature-1/` directory and tells the agent to save there.
 
 Agent receives:
 ```
@@ -112,7 +113,7 @@ Plan the feature:
 
 Auth flow for mobile
 
-Save your plan to: ~/.agcmd/plans/feature-1/claude.md
+Save your plan to: ~/.agcmd/projects/<slug>/plans/feature-1/claude.md
 ```
 
 ### review-plan
@@ -125,7 +126,7 @@ agcmd claude review-plan feature-1 "focus on security"
 
 Agent receives:
 ```
-Review the plans in ~/.agcmd/plans/feature-1/
+Review the plans in ~/.agcmd/projects/<slug>/plans/feature-1/
 
 focus on security
 
@@ -158,11 +159,11 @@ Agent asks another agent a question. Must be run from an agent pane.
 agcmd ask codex auth-design "How should we handle token refresh?"
 ``` 
 
-Writes to `~/.agcmd/questions/auth-design/claude.md`, then on approval sends to codex with prefix:
+Writes to project-scoped `questions/auth-design/claude.md`, then on approval sends to codex with prefix:
 ```
 [from: claude] How should we handle token refresh?
 
-Save your answer to: ~/.agcmd/questions/auth-design/codex.md
+Save your answer to: ~/.agcmd/projects/<slug>/questions/auth-design/codex.md
 Reply using: agcmd answer claude auth-design "your response"
 ```
 
@@ -178,7 +179,7 @@ agcmd answer claude auth-design "Use refresh tokens with 7-day expiry..."
 - `<topic>` - The topic/thread being answered (required)
 - `<message>` - The answer content (required)
 
-Writes to `~/.agcmd/questions/auth-design/codex.md`, notifies claude:
+Writes to project-scoped `questions/auth-design/codex.md`, notifies claude:
 ```
 [from: codex] Use refresh tokens with 7-day expiry...
 ```
@@ -189,22 +190,31 @@ Writes to `~/.agcmd/questions/auth-design/codex.md`, notifies claude:
 
 ```
 ~/.agcmd/
-├── plans/
-│   └── feature-1/
-│       ├── claude.md
-│       ├── codex.md
-│       └── gemini.md
-├── questions/
-│   └── auth-design/
-│       ├── claude.md
-│       └── codex.md
-└── logs/
-    └── commands.jsonl
+├── config.json                          # Global (shared across all projects)
+└── projects/
+    └── <slugified-path>/                # Per-project (e.g., code-agcmd)
+        ├── plans/
+        │   └── feature-1/
+        │       ├── claude.md
+        │       ├── codex.md
+        │       └── gemini.md
+        ├── questions/
+        │   └── auth-design/
+        │       ├── claude.md
+        │       └── codex.md
+        ├── logs/
+        │   └── commands.jsonl
+        └── sessions/
+            └── <tmux-window-id>/        # Per-window (e.g., @0, @3)
+                └── panes.json
 ```
+
+- **Project slug** is derived from the git root path relative to `$HOME` (e.g., `~/Code/agcmd` → `code-agcmd`). Falls back to cwd if not in a git repo.
+- **Session** uses the tmux window ID for per-window isolation. Falls back to `default` outside tmux.
 
 ## Logging
 
-All commands logged to `~/.agcmd/logs/commands.jsonl`:
+All commands logged to project-scoped `logs/commands.jsonl`:
 
 ```json
 {"ts":"2025-02-01T10:00:00Z","agent":"claude","verb":"send","args":["review auth"],"from":"human"}
@@ -281,12 +291,12 @@ function slugify(name) {
 ```
 <prompt>
 
-Save your plan to: ~/.agcmd/plans/<feature>/<agent>.md
+Save your plan to: ~/.agcmd/projects/<slug>/plans/<feature>/<agent>.md
 ```
 
 **review** (plan):
 ```
-Review the plans in ~/.agcmd/plans/<feature>/
+Review the plans in ~/.agcmd/projects/<slug>/plans/<feature>/
 
 <instructions or default format from config>
 
